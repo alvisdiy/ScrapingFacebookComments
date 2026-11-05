@@ -1,0 +1,8 @@
+auth_state.json
+login.csv
+logins.csv
+hasil.csv
+data/
+csv_files/
+*.db
+__pycache__/
