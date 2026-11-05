@@ -1,0 +1,175 @@
+#!/usr/bin/env python3
+"""Varian login lewat login.csv — untuk dibagikan ke teman, BUKAN untuk
+dikirim ke Muse.
+
+Bedanya dengan versi utama project ini:
+- Versi utama (search_retriever.py / details_retriever.py): login
+  manual oleh user di jendela browser, sesi disimpan ke auth_state.json.
+  Tidak ada file password sama sekali. Ini yang tetap direkomendasikan.
+- Varian ini: teman mengisi login.csv-nya SENDIRI di komputernya
+  sendiri (dari logins.csv.template), script ini membaca file itu
+  sekali, login lewat form Facebook, lalu menyimpan sesi ke
+  auth_state.json. Setelah sesi tersimpan, login.csv TIDAK lagi
+  dibutuhkan untuk run berikutnya — dan sebaiknya DIHAPUS.
+
+ATURAN KEAMANAN VARIAN INI (baca sebelum dipakai / dibagikan):
+1. JANGAN PERNAH kirim login.csv ke Muse, ke chat, atau ke siapa pun.
+   Muse tidak butuh dan tidak boleh menerima password lewat file/chat.
+2. JANGAN PERNAH commit login.csv atau auth_state.json ke GitHub.
+   Keduanya sudah ada di .gitignore project ini. Sebelum push, cek
+   `git status` dan pastikan tidak ada keduanya di daftar.
+3. JANGAN pakai akun utama. Pakai akun throwaway/khusus saja, karena
+   scraping login melanggar aturan Facebook dan akun bisa dibatasi /
+   dinonaktifkan.
+4. Password TIDAK PERNAH dicetak, dilog, atau disimpan oleh script ini
+   ke file lain. Yang disimpan hanya sesi browser (auth_state.json) —
+   dan file sesi itu sendiri setara akses akun, jadi jangan dibagikan.
+5. Login otomatis tidak selalu berhasil: kalau Facebook menampilkan
+   checkpoint / kode 2FA, script akan menunggu penyelesaian manual di
+   jendela browser (mode headed) sampai 300 detik, lalu gagal dengan
+   pesan jelas kalau tidak selesai. Jadi "tanpa login manual sama
+   sekali" tidak bisa dijamin — yang dihemat adalah login manual
+   BERULANG, karena sesi dipakai ulang setelahnya.
+
+Format login.csv (salin dari logins.csv.template, satu baris saja):
+    email,password
+    akun-teman@example.com,GANTI_DENGAN_PASSWORD_ASLI
+
+Penggunaan (di komputer teman, setelah pip install -r requirements.txt):
+    cp logins.csv.template login.csv   # lalu isi login.csv di editor
+    python3 login_csv.py --headed      # login + simpan sesi
+    python3 search_retriever.py        # berikutnya, pakai sesi, tanpa csv
+    python3 details_retriever.py
+    rm login.csv                       # disarankan setelah sesi tersimpan
+"""
+
+import argparse
+import csv
+import os
+import sys
+import time
+
+LOGIN_URL = "https://www.facebook.com/login"
+PLACEHOLDER_MARKERS = ("example", "ganti", "changeme", "password_here",
+                       "isi_disini", "your_password")
+
+
+def load_login(path):
+    """Baca baris pertama yang valid dari login.csv. Kembalikan (email, password).
+
+    Password dikembalikan hanya ke pemanggil di proses ini, tidak
+    pernah dicetak. File yang hilang / kosong / masih placeholder
+    ditolak dengan pesan, bukan ditebak.
+    """
+    if not os.path.exists(path):
+        raise SystemExit(
+            "login.csv tidak ditemukan. Salin dulu:\n"
+            "  cp logins.csv.template login.csv\n"
+            "lalu isi login.csv di komputermu sendiri (jangan dikirim ke siapa pun)."
+        )
+    with open(path, newline="", encoding="utf-8") as fh:
+        reader = csv.DictReader(fh)
+        if reader.fieldnames is None:
+            raise SystemExit("login.csv kosong / tanpa header email,password.")
+        # Terima header gaya LinkedIn (emails,passwords) maupun email,password.
+        email_key = "email" if "email" in reader.fieldnames else (
+            "emails" if "emails" in reader.fieldnames else None)
+        pass_key = "password" if "password" in reader.fieldnames else (
+            "passwords" if "passwords" in reader.fieldnames else None)
+        if email_key is None or pass_key is None:
+            raise SystemExit(
+                "Header login.csv harus email,password (ditemukan: %s)."
+                % ",".join(reader.fieldnames))
+        for row in reader:
+            email = (row.get(email_key) or "").strip()
+            password = (row.get(pass_key) or "").strip()
+            if not email or not password:
+                continue
+            low = (email + " " + password).lower()
+            if any(m in low for m in PLACEHOLDER_MARKERS):
+                raise SystemExit(
+                    "login.csv masih berisi placeholder. Isi dulu dengan "
+                    "akunmu sendiri di komputermu, jangan kirim file ini "
+                    "ke siapa pun.")
+            return email, password
+    raise SystemExit("login.csv tidak berisi baris login yang valid.")
+
+
+def _is_logged_in(context):
+    try:
+        return any(c.get("name") == "c_user" for c in context.cookies())
+    except Exception:
+        return False
+
+
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--csv", default="login.csv")
+    parser.add_argument("--state", default="auth_state.json")
+    parser.add_argument("--headed", action="store_true",
+                        help="Tampilkan browser (disarankan, supaya checkpoint/2FA bisa diselesaikan manual).")
+    parser.add_argument("--headless", action="store_true")
+    args = parser.parse_args()
+
+    email, password = load_login(args.csv)
+    # Password hanya dipakai untuk mengisi form login di proses ini;
+    # tidak dicetak, tidak dilog, dan tidak ditulis ke file lain.
+
+    from playwright.sync_api import sync_playwright
+
+    headed = args.headed or not args.headless
+    with sync_playwright() as p:
+        try:
+            browser = p.chromium.launch(headless=not headed, args=["--no-sandbox"])
+        except Exception:
+            browser = p.chromium.launch(
+                headless=not headed, args=["--no-sandbox"], channel="chrome")
+        context = browser.new_context()
+        page = context.new_page()
+        try:
+            page.goto(LOGIN_URL)
+            page.wait_for_selector("#email", timeout=30000)
+            page.fill("#email", email)
+            page.fill("#pass", password)
+            # Tombol login Facebook: name="login", fallback tekan Enter.
+            try:
+                page.click('button[name="login"]', timeout=10000)
+            except Exception:
+                page.keyboard.press("Enter")
+            # Tunggu sesi: cookie c_user, atau penyelesaian manual
+            # checkpoint/2FA di jendela browser (maks 300 detik).
+            deadline = time.time() + 300
+            while time.time() < deadline:
+                if _is_logged_in(context):
+                    break
+                # Beri tahu sekali kalau tampak checkpoint, tanpa detail akun.
+                try:
+                    url = page.url or ""
+                except Exception:
+                    url = ""
+                if "checkpoint" in url or "two_factor" in url or "login" in url:
+                    print("Facebook meminta verifikasi tambahan. Selesaikan "
+                          "di jendela browser (kalau headed), lalu tunggu...")
+                    time.sleep(10)
+                else:
+                    time.sleep(5)
+            else:
+                print("Login tidak terdeteksi dalam 300 detik. Sesi TIDAK disimpan.")
+                print("Kemungkinan: password salah, checkpoint belum selesai, "
+                      "atau akun terkunci. Coba lagi dengan --headed.")
+                return 1
+            context.storage_state(path=args.state)
+            try:
+                os.chmod(args.state, 0o600)
+            except Exception:
+                pass
+            print("Login berhasil. Sesi tersimpan ke %s (jangan dibagikan)." % args.state)
+            print("Saran: hapus %s sekarang (rm %s) — run berikutnya sudah "
+                  "pakai sesi, tidak butuh file itu lagi." % (args.csv, args.csv))
+            return 0
+        finally:
+            browser.close()
+
+
+if __name__ == "__main__":
+    sys.exit(main())

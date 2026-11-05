@@ -1,0 +1,19 @@
+[
+  {
+    "url": "https://mbasic.facebook.com/search/posts/?q=slot%20gacor",
+    "final_url": "https://mbasic.facebook.com/search/posts/?q=slot%20gacor",
+    "status": 400,
+    "bytes": 3676,
+    "login_wall": false,
+    "snippets": [
+      "Sorry, something went wrong. We are working on it and we'll get it fixed as soon as we can. « Back to Home",
+      "We are working on it and we'll get it fixed as soon as we can."
+    ],
+    "keyword": "slot gacor"
+  },
+  {
+    "url": "https://m.facebook.com/search/posts/?q=slot%20gacor",
+    "error": "HTTPSConnectionPool(host='m.facebook.com', port=443): Read timed out. (read timeout=20)",
+    "keyword": "slot gacor"
+  }
+]
