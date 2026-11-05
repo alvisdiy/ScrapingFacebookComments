@@ -108,6 +108,17 @@ python3 search_retriever.py --help
 # menyaring komentarnya, jadi permukaan yang berisik tidak masalah.
 python3 search_retriever.py --mode random
 
+# Mode OTOMATIS (baru): cari + kumpulkan + analisis terus sampai
+# dihentikan (Ctrl+C). Per putaran maks 25 postingan BARU — itu bukan
+# batas total, putaran berikutnya mengambil 25 baru lagi. Jeda antar
+# putaran default 10 menit. Berhenti sendiri kalau login/checkpoint
+# gagal, dan bisa dilanjutkan kapan saja (postingan selesai tidak
+# diulang). Lihat auto.py untuk detailnya.
+python3 auto.py --headed            # pertama kali (login manual)
+python3 auto.py --mode random       # hanya postingan biasa
+python3 auto.py --max-rounds 10 --sleep 300
+python3 auto.py --minutes 120       # berhenti setelah 2 jam
+
 # 2. Ambil komentar dari postingan yang ditemukan
 python3 details_retriever.py --help
 
@@ -147,6 +158,9 @@ python3 -m py_compile *.py pipeline/*.py
   (`random_queries` di `pipeline/config.json`), tanpa kata kunci
   judol — lihat `pipeline/collect.py: discover_random_posts`.
 - `test_discover_random.py` — tes offline mode random (halaman palsu).
+- `auto.py` — mode otomatis (discover + collect + analyze berulang).
+  `--max-posts-per-round` membatasi tiap putaran, bukan total.
+- `test_auto.py` — tes offline mode otomatis (browser palsu).
 - `details_retriever.py` — pengambilan komentar (+ mode `--offline`).
 - `spam_detector.py` — detektor spam/promosi v2.22 (+ aturan skor).
 - `brand_tokens.py` — pencocok token merek (huruf + angka).

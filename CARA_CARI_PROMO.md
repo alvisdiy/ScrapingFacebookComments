@@ -119,6 +119,17 @@ dicocokkan. Jadi "DAFTAR" huruf fancy + link tetap ketahuan.
    brand, tapi detektor yang menyaring: komentar biasa jadi
    "other" dan tidak masuk dataset promo.
 
+## 2b. Mode otomatis (auto.py)
+
+Kalau mau jalan terus tanpa per run manual: `python3 auto.py`
+menjalankan putaran discover -> collect -> analyze berulang sampai
+dihentikan (Ctrl+C), atau sampai `--max-rounds N` / `--minutes M`.
+Per putaran maks 25 postingan BARU (bukan batas total — putaran
+berikutnya mengambil 25 baru lagi), jeda antar putaran default 10
+menit. Kalau login/checkpoint gagal, run berhenti sendiri, tidak
+mencoba lagi agresif; lanjutkan lain kali, postingan yang sudah
+selesai tidak diulang karena statusnya tersimpan di DB.
+
 ## 3. Cara koleksinya (supaya tidak hilang di tengah jalan)
 
 - Per batch MAKS 15 postingan. Batch besar dulu pernah gagal
