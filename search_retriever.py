@@ -17,9 +17,20 @@ Login: sama seperti project ini dari awal — TIDAK ada logins.csv,
 tidak ada password di argumen/file/env. Sesi dibuat user sendiri di
 jendela browser pada run pertama (pipeline/collect.ensure_login).
 
+Mode discovery (--mode):
+    all       kata kunci judol + feed grup + postingan random (default)
+    keywords  kata kunci judol + feed grup (perilaku lama)
+    random    HANYA feed grup + postingan random, tanpa kata kunci
+              judol sama sekali — untuk menangkap promosi judol yang
+              menempel di postingan biasa (keluhan, peringatan scam,
+              jual beli, motor, dll). Detektor spam yang menyaring
+              komentarnya nanti, jadi permukaan yang berisik tidak
+              masalah.
+
 Contoh:
     python3 search_retriever.py --headed          # pertama kali (login manual)
     python3 search_retriever.py                   # run berikutnya, pakai sesi
+    python3 search_retriever.py --mode random     # hanya postingan biasa
     python3 search_retriever.py --loop --sleep 600  # hanya kalau diminta
 """
 
@@ -44,6 +55,11 @@ def main():
                         help="Ulangi discovery sampai dihentikan (Ctrl+C).")
     parser.add_argument("--sleep", type=float, default=600.0,
                         help="Jeda antar putaran --loop, detik (default 600).")
+    parser.add_argument("--mode", choices=["all", "keywords", "random"],
+                        default="all",
+                        help="Permukaan discovery: all (default), "
+                        "keywords saja, atau random saja (tanpa kata "
+                        "kunci judol).")
     args = parser.parse_args()
 
     with open(args.config, encoding="utf-8") as fh:
@@ -60,8 +76,13 @@ def main():
         )
         try:
             while True:
-                posts = collect_mod.discover_posts(page, config)
-                posts += collect_mod.discover_group_posts(page, config)
+                posts = []
+                if args.mode in ("all", "keywords"):
+                    posts += collect_mod.discover_posts(page, config)
+                if args.mode in ("all", "keywords", "random"):
+                    posts += collect_mod.discover_group_posts(page, config)
+                if args.mode in ("all", "random"):
+                    posts += collect_mod.discover_random_posts(page, config)
                 seen, deduped = set(), []
                 for post in posts:
                     if post["url"] not in seen:

@@ -104,6 +104,20 @@ dicocokkan. Jadi "DAFTAR" huruf fancy + link tetap ketahuan.
 4. **Postingan video / reel ramai** — 1 postingan video bisa
    menyumbang 18 komentar promo sekaligus (terjadi di batch 1),
    jadi postingan ramai diprioritaskan, bukan postingan sepi.
+5. **Postingan biasa / random (tanpa kata kunci judol)** — promosi
+   judol sering menempel di postingan yang isinya bukan judol
+   sama sekali: postingan peringatan scam, keluhan WD tidak
+   dibayar, jual beli, sampai postingan motor. Buktinya dari
+   pengumpulan: klaster AMAVI88 38 komentar menempel di 1
+   postingan peringatan penipuan, klaster RAFA88 11 komentar di
+   postingan keluhan, spam MEGA177/NABATIBET di postingan motor.
+   Jadi pencariannya tidak boleh cuma kata kunci judol — ada mode
+   `--mode random` di `search_retriever.py` yang mencari
+   postingan lewat istilah netral sehari-hari (motor bekas, hp
+   second, lowongan kerja, ...) plus feed grup, tanpa kata judi
+   apa pun. Hit rate-nya memang lebih rendah dari pencarian
+   brand, tapi detektor yang menyaring: komentar biasa jadi
+   "other" dan tidak masuk dataset promo.
 
 ## 3. Cara koleksinya (supaya tidak hilang di tengah jalan)
 

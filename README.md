@@ -100,6 +100,14 @@ Aturan varian ini (lengkapnya di `README_LOGIN_CSV.md`):
 # 1. Cari postingan (maks 25/run, satu kali jalan)
 python3 search_retriever.py --help
 
+# Mode discovery: all (default) = kata kunci judol + feed grup +
+# postingan random; keywords = kata kunci + feed grup; random =
+# HANYA feed grup + postingan biasa, tanpa kata kunci judol —
+# karena promosi judol sering menempel di postingan biasa
+# (peringatan scam, keluhan, jual beli, motor). Detektor yang
+# menyaring komentarnya, jadi permukaan yang berisik tidak masalah.
+python3 search_retriever.py --mode random
+
 # 2. Ambil komentar dari postingan yang ditemukan
 python3 details_retriever.py --help
 
@@ -135,6 +143,10 @@ python3 -m py_compile *.py pipeline/*.py
 ## File
 
 - `search_retriever.py` — discovery postingan (pencarian/feed grup).
+  `--mode random` mencari postingan biasa lewat istilah netral
+  (`random_queries` di `pipeline/config.json`), tanpa kata kunci
+  judol — lihat `pipeline/collect.py: discover_random_posts`.
+- `test_discover_random.py` — tes offline mode random (halaman palsu).
 - `details_retriever.py` — pengambilan komentar (+ mode `--offline`).
 - `spam_detector.py` — detektor spam/promosi v2.22 (+ aturan skor).
 - `brand_tokens.py` — pencocok token merek (huruf + angka).

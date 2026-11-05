@@ -188,6 +188,60 @@ def discover_group_posts(page, config):
     return found
 
 
+DEFAULT_RANDOM_QUERIES = [
+    # Istilah netral sehari-hari, TANPA kata judi apa pun. Tujuannya
+    # menemukan postingan biasa (random) yang komentarnya ternyata
+    # ditempeli promosi judol — pola yang terbukti di pengumpulan
+    # sebelumnya: spam AMAVI88/RAFA88/POA88 menempel di postingan
+    # peringatan scam, keluhan WD, sampai postingan motor. Detektor
+    # yang menyaring (komentar non-promo jadi "other"), jadi
+    # permukaan yang berisik tidak masalah.
+    "motor bekas", "hp second", "lowongan kerja", "viral hari ini",
+    "jual beli", "sepak bola", "resep masakan", "kucing lucu",
+    "info terbaru", "travel murah",
+]
+
+
+def discover_random_posts(page, config):
+    """Cari postingan BIASA (random) lewat istilah netral, bukan judol.
+
+    Sengaja TIDAK memakai kata kunci judi: yang dicari adalah
+    postingan sehari-hari yang komentarnya bisa ditempeli promosi
+    judol. Mengembalikan list {"base_keyword": "random", "query",
+    "mode": "random", "url"}. Batas per query lebih kecil dari
+    pencarian kata kunci (default 10) karena permukaan ini lebih
+    berisik — detektor spam yang akan menyaringnya nanti.
+    """
+    delay = float(config.get("delay_seconds", 5.0))
+    max_per_query = int(config.get("max_random_posts_per_query", 10))
+    queries = config.get("random_queries") or DEFAULT_RANDOM_QUERIES
+    found, seen = [], set()
+    for query in queries:
+        url = SEARCH_POSTS_URL.format(q=urllib.parse.quote(query))
+        try:
+            page.goto(url)
+            page.wait_for_timeout(4000)
+            _scroll(page, 5, 2)
+            links = _collect_post_links(page, max_per_query)
+        except Exception as exc:
+            print("[random/%s] gagal: %s" % (query, exc))
+            links = []
+        print("[random | %s] %d postingan" % (query, len(links)))
+        for link in links:
+            if link not in seen:
+                seen.add(link)
+                found.append(
+                    {
+                        "base_keyword": "random",
+                        "query": query,
+                        "mode": "random",
+                        "url": link,
+                    }
+                )
+        time.sleep(delay)
+    return found
+
+
 GROUP_SEARCH_URL = "https://www.facebook.com/search/groups/?q={q}"
 
 
