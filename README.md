@@ -1,8 +1,20 @@
 # Facebook Judol Comment Scraper
 
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/alvisdiy/ScrapingFacebookComments/blob/main/ScrapingFacebookComments_Colab.ipynb)
+
 Kumpulan script untuk mengumpulkan dan mengklasifikasikan komentar
 promosi judi online (judol) di Facebook — dari pencarian dan feed grup
 — lalu menilainya dengan detektor spam/promosi berbasis aturan.
+
+**Mau jalanin di Google Colab / Kaggle?** Buka
+[`ScrapingFacebookComments_Colab.ipynb`](ScrapingFacebookComments_Colab.ipynb)
+(tombol Colab di atas) atau upload file itu sebagai notebook Kaggle
+(nyalakan Internet di Settings Kaggle dulu). Isi notebook: setup,
+login (upload `auth_state.json` dari komputermu — disarankan — atau
+`login.csv`), jalankan `auto.py`, lihat hasil, unduh CSV, simpan ke
+Google Drive. Runtime Colab/Kaggle itu sementara (Colab idle ~90 mnt,
+maks ~12 jam; Kaggle maks 9 jam/sesi), jadi simpan sesi + data ke Drive
+sebelum sesi berakhir — detailnya ada di dalam notebook.
 
 Hasil yang sudah dicapai dengan kode ini: **1.013 komentar promo unik**
 (spam 530, kandidat 483) dari 137 postingan berbeda, dikumpulkan dalam
