@@ -194,7 +194,11 @@ def main():
     parser.add_argument("--state", default="auth_state.json")
     parser.add_argument("--headed", action="store_true")
     parser.add_argument("--mode", choices=["all", "keywords", "random"],
-                        default="all")
+                        default="all",
+                        help="all (default): kata kunci judol + feed grup + "
+                        "postingan biasa; keywords: kata kunci judol + feed "
+                        "grup; random: hanya feed grup + postingan biasa, "
+                        "tanpa kata kunci judol.")
     parser.add_argument("--max-posts-per-round", type=int, default=25,
                         help="Postingan baru per putaran (default 25). "
                         "Bukan batas total: putaran berikutnya mengambil "

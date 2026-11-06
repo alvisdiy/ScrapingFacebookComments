@@ -65,6 +65,24 @@ python auto.py --mode random
 Per putaran maks 25 postingan baru (itu batas per putaran, bukan
 batas total — putaran berikutnya mengambil 25 baru lagi).
 
+**Mode — mau cari postingan apa:**
+
+| Mode | Yang dicari | Kapan dipakai |
+|---|---|---|
+| `all` (default) | Kata kunci judol + feed grup + postingan biasa | Mau semuanya |
+| `keywords` | Kata kunci judol + feed grup | Mau fokus ke postingan judol |
+| `random` | Feed grup + postingan biasa, tanpa kata kunci judol | Mau menangkap promo yang menempel di postingan biasa (peringatan scam, keluhan, jual beli, motor) |
+
+Contoh:
+
+```bash
+python auto.py --mode all       # semuanya
+python auto.py --mode keywords  # hanya postingan judol
+python auto.py --mode random    # hanya postingan biasa
+```
+
+Mode ini sama untuk `search_retriever.py`.
+
 Sekali jalan saja juga bisa:
 
 ```bash
