@@ -24,6 +24,25 @@ Setelah `login_csv.py` berhasil, file `login.csv` sudah tidak
 dibutuhkan lagi. Run berikutnya (`search_retriever.py`,
 `details_retriever.py`) memakai `auth_state.json`, bukan csv.
 
+## Opsi C — login manual di tab baru + cookies (untuk Colab/Kaggle)
+
+Di Colab/Kaggle tidak ada jendela browser untuk login manual, dan
+login form headless sering mentok di checkpoint/2FA. Cara yang paling
+bisa diandalkan di sana (`login_cookies.py`):
+
+1. Buka facebook.com di tab browser sendiri, login manual di sana
+   (checkpoint/2FA bisa diselesaikan sendiri).
+2. Export cookies facebook.com dengan ekstensi gratis Cookie-Editor
+   (Export → JSON), simpan sebagai `cookies.json`.
+3. Upload `cookies.json` ke Colab/Kaggle, jalankan
+   `python3 login_cookies.py --cookies cookies.json` — script
+   mengubahnya menjadi `auth_state.json` dan memverifikasi loginnya.
+4. Hapus `cookies.json` sesudahnya.
+
+Cookies itu setara akses akun: jangan dikirim ke siapa pun dan jangan
+di-commit (sudah di `.gitignore`). Format yang diterima: JSON
+Cookie-Editor / EditThisCookie, atau Netscape cookies.txt.
+
 ## Yang harus temanmu tahu sebelum pakai
 
 1. **Pakai akun throwaway/khusus, bukan akun utama.** Scraping

@@ -1,6 +1,11 @@
 auth_state.json
 login.csv
 logins.csv
+cookies.json
+login_page.png
+login_page.html
+login_failed.png
+login_failed.txt
 hasil.csv
 data/
 csv_files/
