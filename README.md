@@ -70,6 +70,13 @@ datanya aman): tambah `--checkpoint-dir /content/drive/MyDrive/fb-judol/data`.
 Tanpa flag itu, data hanya tersimpan di dalam runtime dan hilang kalau
 runtime mati sebelum disimpan manual.
 
+**Setting yang disarankan di Colab:** `python auto.py --mode random
+--max-posts-per-round 25 --max-rounds 2 --sleep 300 --minutes 240`
+(sekitar 2 jam, maks 50 postingan). Discovery per putaran itu mahal
+(~30 menit di mode keywords), jadi ambil 25 postingan per putaran,
+bukan 5. Mode `keywords` lebih tertarget tapi discovery-nya lebih lama
+(~80 menit/putaran dengan 25 postingan).
+
 **Mode — mau cari postingan apa:**
 
 | Mode | Yang dicari | Kapan dipakai |
