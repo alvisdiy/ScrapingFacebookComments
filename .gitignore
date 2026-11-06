@@ -11,3 +11,6 @@ data/
 csv_files/
 *.db
 __pycache__/
+
+# Rencana 1 juta — lokal dulu, push hanya kalau Vi confirm
+RENCANA_1_JUTA.md
