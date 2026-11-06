@@ -62,6 +62,23 @@ playwright install chromium   # butuh browser di mesin yang menjalankan
 Kalau unduhan Chromium Playwright gagal, script otomatis fallback ke
 Google Chrome sistem (`channel="chrome"`) bila tersedia.
 
+**Windows (PowerShell):** setelah aktivasi venv, pakai `python`,
+BUKAN `python3` — `python3` di Windows biasanya menunjuk ke Python
+lain (bukan venv), jadi `pip install` sukses tapi script gagal
+`ModuleNotFoundError: No module named 'playwright'`. Perintah yang
+benar di venv yang aktif:
+
+```powershell
+.\venv\Scripts\Activate.ps1
+python -m pip install -r requirements.txt
+python -m playwright install chromium
+python login_csv.py --headed
+```
+
+Cek interpreter yang dipakai: `where.exe python` dan
+`python -c "import playwright; print('ok')"` — keduanya harus
+menunjuk ke dalam `venv`.
+
 ## Login — dua cara
 
 ### Cara A (direkomendasikan): login manual, tanpa file password
