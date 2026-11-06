@@ -114,6 +114,32 @@ def main():
     total2, _ = auto.summarize_raw(raw_path)
     check("raw file tidak bertambah", total2 == 6)
 
+    # Checkpoint: DB + raw tersalin tiap putaran, tanpa mengganggu run.
+    ckpt = os.path.join(tmp, "ckpt")
+    summary3 = auto.run_auto(
+        config_path, db_path, raw_path, os.path.join(tmp, "state.json"),
+        headed=False, mode="all", max_posts_per_round=2, sleep_s=0,
+        max_rounds=1, max_minutes=0, analyze=False,
+        login_fn=fake_login, collect_fn=fake_collect,
+        checkpoint_dir=ckpt)
+    check("checkpoint: run tetap selesai", summary3["rounds"] == 1)
+    check("checkpoint: DB tersalin",
+          os.path.exists(os.path.join(ckpt, "test.db")))
+    check("checkpoint: raw tersalin",
+          os.path.exists(os.path.join(ckpt, "raw.jsonl")))
+    # Folder checkpoint rusak (berupa file, bukan folder): run tidak
+    # boleh mati.
+    bad = os.path.join(tmp, "bukan-folder")
+    with open(bad, "w", encoding="utf-8") as fh:
+        fh.write("x")
+    summary4 = auto.run_auto(
+        config_path, db_path, raw_path, os.path.join(tmp, "state.json"),
+        headed=False, mode="all", max_posts_per_round=2, sleep_s=0,
+        max_rounds=1, max_minutes=0, analyze=False,
+        login_fn=fake_login, collect_fn=fake_collect,
+        checkpoint_dir=bad)
+    check("checkpoint gagal tidak mematikan run", summary4["rounds"] == 1)
+
     print()
     if failures:
         print("%d kasus gagal: %s" % (len(failures), failures))

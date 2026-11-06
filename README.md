@@ -65,6 +65,11 @@ python auto.py --mode random
 Per putaran maks 25 postingan baru (itu batas per putaran, bukan
 batas total — putaran berikutnya mengambil 25 baru lagi).
 
+Simpan otomatis ke Drive tiap putaran (supaya runtime Colab mati pun
+datanya aman): tambah `--checkpoint-dir /content/drive/MyDrive/fb-judol/data`.
+Tanpa flag itu, data hanya tersimpan di dalam runtime dan hilang kalau
+runtime mati sebelum disimpan manual.
+
 **Mode — mau cari postingan apa:**
 
 | Mode | Yang dicari | Kapan dipakai |

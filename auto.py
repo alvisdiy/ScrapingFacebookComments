@@ -20,6 +20,12 @@ lagi secara agresif. Lanjutkan lain kali tanpa kehilangan apa-apa:
 DB (status per postingan) dan raw_comments.jsonl bersifat append,
 postingan yang sudah selesai tidak diulang.
 
+Checkpoint: --checkpoint-dir <folder> menyalin DB + raw + CSV promo
+(+ sesi login, kalau ada) ke folder itu TIAP putaran selesai — di
+Colab, isi dengan folder Drive (mis. /content/drive/MyDrive/fb-judol/data)
+supaya runtime mati pun datanya aman. Gagal menyalin tidak pernah
+mematikan run, hanya peringatan.
+
 Pakai:
     python3 auto.py --headed            # pertama kali (login manual)
     python3 auto.py                      # run berikutnya, pakai sesi
@@ -31,6 +37,7 @@ Pakai:
 import argparse
 import json
 import os
+import shutil
 import sys
 import time
 
@@ -86,9 +93,35 @@ def summarize_raw(raw_path):
     return total, labels
 
 
+def _checkpoint(checkpoint_dir, db_path, raw_path, state_path):
+    """Salin DB + raw + CSV promo + sesi ke folder checkpoint (mis.
+    folder Google Drive). Hanya file yang ada yang disalin; gagal
+    menyalin TIDAK PERNAH mematikan run — cuma peringatan."""
+    if not checkpoint_dir:
+        return False
+    try:
+        os.makedirs(checkpoint_dir, exist_ok=True)
+        files = [db_path, raw_path, state_path,
+                 os.path.join(HERE, "data", "promo_comments.csv"),
+                 os.path.join(HERE, "data", "spam_summary.json")]
+        copied = 0
+        for src in files:
+            if src and os.path.exists(src):
+                shutil.copy2(src, os.path.join(checkpoint_dir,
+                                               os.path.basename(src)))
+                copied += 1
+        print("Checkpoint: %d file tersimpan ke %s"
+              % (copied, checkpoint_dir))
+        return True
+    except Exception as exc:
+        print("Checkpoint GAGAL (run tetap jalan): %s" % exc)
+        return False
+
+
 def run_auto(config_path, db_path, raw_path, state_path, headed, mode,
              max_posts_per_round=25, sleep_s=600.0, max_rounds=0,
-             max_minutes=0, analyze=True, login_fn=None, collect_fn=None):
+             max_minutes=0, analyze=True, login_fn=None, collect_fn=None,
+             checkpoint_dir=""):
     """Jalankan putaran otomatis. Kembalikan ringkasan akhir (dict)."""
     from pipeline import collect as collect_mod
     import details_retriever as details_mod
@@ -161,6 +194,10 @@ def run_auto(config_path, db_path, raw_path, state_path, headed, mode,
                                "posts": total_collected_posts,
                                "comments": total_added_comments,
                                "promo": promo}
+                    if checkpoint_dir:
+                        conn.commit()
+                        _checkpoint(checkpoint_dir, db_path, raw_path,
+                                    state_path)
                     if max_rounds and total_rounds >= max_rounds:
                         print("Batas putaran tercapai (%d)." % max_rounds)
                         break
@@ -209,10 +246,16 @@ def main():
                         help="Berhenti setelah N putaran (0 = tanpa batas).")
     parser.add_argument("--minutes", type=float, default=0,
                         help="Berhenti setelah N menit (0 = tanpa batas).")
+    parser.add_argument("--checkpoint-dir", default="",
+                        help="Salin DB + raw + CSV promo (+ sesi) ke folder "
+                        "ini TIAP putaran selesai. Di Colab isi folder "
+                        "Drive, mis. /content/drive/MyDrive/fb-judol/data. "
+                        "Kosong = mati (default).")
     args = parser.parse_args()
     run_auto(args.config, args.db, args.raw, args.state, args.headed,
              args.mode, args.max_posts_per_round, args.sleep,
-             args.max_rounds, args.minutes)
+             args.max_rounds, args.minutes,
+             checkpoint_dir=args.checkpoint_dir)
     return 0
 
 
