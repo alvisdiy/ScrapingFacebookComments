@@ -157,6 +157,14 @@ def main():
         hints = login_csv._describe_login_failure(page)
         check("halaman 2FA terdeteksi (two_step_verification)",
               hints == {"kode 2FA"})
+
+        page = FakePage(
+            set(), body_text="I'm not a robot. This helps us to combat "
+            "harmful conduct. We've used Google's reCAPTCHA Enterprise "
+            "product to provide this security check.")
+        hints = login_csv._describe_login_failure(page)
+        check("halaman reCAPTCHA terdeteksi",
+              hints == {"captcha / reCAPTCHA"})
     finally:
         os.chdir(old)
 

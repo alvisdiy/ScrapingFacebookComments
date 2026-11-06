@@ -154,6 +154,9 @@ LOGIN_FAILURE_PHRASES = (
     ("enter your code", "kode 2FA"),
     ("masukkan kode", "kode 2FA"),
     ("kode login", "kode 2FA"),
+    ("i'm not a robot", "captcha / reCAPTCHA"),
+    ("i am not a robot", "captcha / reCAPTCHA"),
+    ("recaptcha", "captcha / reCAPTCHA"),
     ("suspicious", "login mencurigakan"),
     ("mencurigakan", "login mencurigakan"),
     ("unusual login", "login mencurigakan"),
@@ -318,7 +321,15 @@ def main():
                 hints = _describe_login_failure(page)
                 print("Login tidak terdeteksi dalam 300 detik. "
                       "Sesi TIDAK disimpan.")
-                if ("checkpoint / verifikasi identitas" in hints
+                if "captcha / reCAPTCHA" in hints:
+                    print("Penyebabnya: Meta menampilkan reCAPTCHA "
+                          "('I'm not a robot') untuk login dari IP "
+                          "datacenter + browser otomatis ini. Captcha tidak "
+                          "bisa diselesaikan headless — login manual di tab "
+                          "browsermu sendiri (di sana kamu bisa klik "
+                          "captcha-nya), lalu pakai Opsi C di notebook "
+                          "(upload cookies) atau Opsi A (auth_state.json).")
+                elif ("checkpoint / verifikasi identitas" in hints
                         or "kode 2FA" in hints):
                     print("Penyebab paling mungkin: Facebook meminta "
                           "verifikasi tambahan yang tidak bisa diselesaikan "
