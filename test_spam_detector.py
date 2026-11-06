@@ -29,7 +29,11 @@ CASES = [
     ("Pindah ke GARUDAPLAY, cairnya kilat", "spam"),
     ("wajib cobain si main di STARXBOY akun baru enak bgt, coba", "spam"),
     ("Link alternatif baru, situs terpercaya dan gampang WD", "spam"),
-    ("Coba pake server luar, RTP nya di atas 90%, JP terus", "spam"),
+    # v2.23: "coba" polos dihapus dari CTA (keluhan korban salah jadi
+    # candidate gara-gara "coba"), jadi komentar ini turun dari spam
+    # ke candidate — tetap promo (candidate masuk dataset), cuma
+    # labelnya bukan spam lagi.
+    ("Coba pake server luar, RTP nya di atas 90%, JP terus", "candidate"),
     ("situs slot nipu, depo berkali-kali rungkad terus", "other"),
     # Perluasan pola zeus777 2026-11-05.
     ("zeus777 gacor banget daftar sekarang", "spam"),
@@ -98,6 +102,45 @@ def main():
     print("maximumwin99+kontak -> %s (%d) %s" % (r2["label"], r2["score"], r2["brand_tokens"]))
     if r2["label"] != "spam" or "maximumwin99" not in r2["brand_tokens"]:
         failed += 1
+    # v2.23: keluarga brand baru (auto/dapurpola/cici/swiftfrog naik
+    # dari +2 pola tak dikenal menjadi +3 keluarga dikenal).
+    v23_scores = [
+        ("auto30", 3),
+        ("SwiftFrog3176", 3),
+        ("cici46", 3),
+        ("main di dapurpola68", 5),
+        ("daftar auto30 gacor", 6),
+        ("main di slotgacor2026 gacor wd lancar", 10),
+        ("coba sweetbonanza1000 gacor hari ini", 6),
+        ("main di zeuss1000 wd", 6),
+    ]
+    for text, expected_score in v23_scores:
+        r = classify_comment(text)
+        ok = r["score"] == expected_score
+        failed += not ok
+        print("%s %-55s -> skor %d (harap %d) %s" % (
+            "OK " if ok else "FAIL", text[:55], r["score"],
+            expected_score, r["brand_tokens"]))
+    # v2.23: "coba di" tetap CTA, tapi "coba" polos bukan lagi.
+    v23_labels = [
+        # (teks, label yang diharapkan)
+        ("coba di zeus88", "spam"),
+        ("Bos semua coba buat grup gimana cara nya slot di hapus kan. Semua slot itu nipu.", "other"),
+        ("login di zeus88", "candidate"),
+        # Teks UI Facebook — bukan komentar, langsung other skor 0.
+        ("Find friends", "other"),
+        ("Notifications", "other"),
+        ("New See all", "other"),
+        ("UnreadWe noticed a new login from a device or location that you don't usually use. Please review.", "other"),
+        ("UnreadSee who's also on Facebook. Tap here to get help finding friends.", "other"),
+        ("Marketplace", "other"),
+    ]
+    for text, expected in v23_labels:
+        r = classify_comment(text)
+        ok = r["label"] == expected
+        failed += not ok
+        print("%s %-55s -> %s (%d) (harap %s)" % (
+            "OK " if ok else "FAIL", text[:55], r["label"], r["score"], expected))
     print("\n%d kasus gagal" % failed)
     return 1 if failed else 0
 

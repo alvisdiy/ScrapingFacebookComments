@@ -23,19 +23,31 @@ from collections import Counter
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from spam_detector import classify_comment  # noqa: E402
+from pipeline.collect import is_real_post_url  # noqa: E402
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 
 
-def main():
-    raw_path = os.path.join(HERE, "data", "raw_comments.jsonl")
+def main(base_dir=None):
+    base = base_dir or HERE
+    raw_path = os.path.join(base, "data", "raw_comments.jsonl")
     rows, seen = [], set()
+    skipped_bogus = 0
     with open(raw_path, encoding="utf-8") as fh:
         for line in fh:
             line = line.strip()
             if not line:
                 continue
             row = json.loads(line)
+            # v2.23: buang komentar dari URL yang bukan postingan
+            # (halaman pencarian, tab Reels) — di run Colab
+            # 2026-11-06, 354 dari 651 komentar berasal dari URL
+            # seperti itu, termasuk 163 "promo" dari satu halaman
+            # pencarian video. File mentah tidak diubah; yang
+            # dibersihkan hanya output analisis ini.
+            if not is_real_post_url(row.get("post_url", "")):
+                skipped_bogus += 1
+                continue
             key = (row.get("post_url", ""), row.get("comment_text", ""))
             if key in seen:
                 continue
@@ -65,7 +77,7 @@ def main():
             "comment_text": row.get("comment_text", ""),
         })
 
-    csv_path = os.path.join(HERE, "data", "spam_comments.csv")
+    csv_path = os.path.join(base, "data", "spam_comments.csv")
     with open(csv_path, "w", newline="", encoding="utf-8") as fh:
         w = csv.DictWriter(fh, fieldnames=list(out_rows[0].keys()) if out_rows else [])
         w.writeheader()
@@ -80,7 +92,7 @@ def main():
     # kata "daftar" di dalam daftar situs yang diperingatkan — noise
     # 1 dari 42, dicatat di sini supaya tidak dihitung sebagai bukti.
     promo_rows = [r for r in out_rows if r["label"] in ("spam", "candidate")]
-    promo_path = os.path.join(HERE, "data", "promo_comments.csv")
+    promo_path = os.path.join(base, "data", "promo_comments.csv")
     with open(promo_path, "w", newline="", encoding="utf-8") as fh:
         w = csv.DictWriter(fh, fieldnames=list(out_rows[0].keys()) if out_rows else [])
         w.writeheader()
@@ -90,14 +102,17 @@ def main():
         "distinct_comments": len(rows),
         "labels": dict(label_counts),
         "promo_comments": len(promo_rows),
+        "skipped_bogus_urls": skipped_bogus,
         "spam_brand_tokens_by_posts": {
             tok: len(posts) for tok, posts in sorted(
                 spam_token_posts.items(), key=lambda kv: -len(kv[1]))
         },
     }
-    with open(os.path.join(HERE, "data", "spam_summary.json"), "w", encoding="utf-8") as fh:
+    with open(os.path.join(base, "data", "spam_summary.json"), "w", encoding="utf-8") as fh:
         json.dump(summary, fh, ensure_ascii=False, indent=2)
     print("Komentar unik: %d" % len(rows))
+    if skipped_bogus:
+        print("Dibuang (URL bukan postingan): %d komentar" % skipped_bogus)
     print("Label: %s" % dict(label_counts))
     print("Promo (spam+candidate): %d -> %s" % (len(promo_rows), promo_path))
     print("Calon brand baru dari pola 'main di / daftar di / coba di / "

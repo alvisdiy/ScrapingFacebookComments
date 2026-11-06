@@ -39,7 +39,43 @@ MORE_COMMENTS_TEXT = [
     "Lihat balasan lainnya",
 ]
 
-POST_LINK_MARKERS = ("/posts/", "/permalink/", "/story.php", "/videos/", "/reel/")
+def is_real_post_url(url):
+    """True hanya untuk URL postingan Facebook asli.
+
+    Penanda lama ("/posts/", "/permalink/", "/videos/", "/reel/")
+    terlalu longgar: halaman PENCARIAN ikut lolos karena URL-nya
+    mengandung penanda itu — "/search/posts/?q=..." mengandung
+    "/posts/", "/search/videos/?q=..." mengandung "/videos/".
+    Di run Colab 2026-11-06, 12 dari 25 "postingan" yang dikumpulkan
+    ternyata halaman pencarian/tab Reels, menyumbang 354 dari 651
+    komentar (54%) — termasuk 163 "promo" dari satu halaman
+    pencarian video yang isinya teks UI + komentar video random.
+    Aturan di sini: tolak semua /search/ dulu, lalu terima hanya
+    pola postingan (permalink grup, /posts/<id>, permalink.php /
+    story.php dengan story_fbid, video pcb., reel bernomor).
+    """
+    if not isinstance(url, str) or not url:
+        return False
+    try:
+        parsed = urllib.parse.urlparse(url)
+    except Exception:
+        return False
+    if parsed.netloc and "facebook.com" not in parsed.netloc:
+        return False
+    path = parsed.path or ""
+    if "/search/" in path:
+        return False
+    if "/permalink/" in path:
+        return True
+    if re.search(r"/posts/[^/]+", path):
+        return True
+    if path in ("/permalink.php", "/story.php") and "story_fbid" in (parsed.query or ""):
+        return True
+    if re.search(r"/videos/pcb\.", path):
+        return True
+    if re.search(r"/reel/\d+", path):
+        return True
+    return False
 
 
 def _is_logged_in(context):
@@ -89,7 +125,7 @@ def _collect_post_links(page, limit):
     for href in hrefs:
         if not isinstance(href, str) or "facebook.com" not in href:
             continue
-        if any(m in href for m in POST_LINK_MARKERS) and href not in seen:
+        if is_real_post_url(href) and href not in seen:
             seen.add(href)
             links.append(href)
         if len(links) >= limit:
@@ -357,6 +393,13 @@ def collect_comments_deep(page, post_url, config):
     max_comments = int(config.get("max_comments_per_post", 500))
     rounds = int(config.get("scroll_rounds", 12))
     delay = float(config.get("delay_seconds", 5.0))
+    if not is_real_post_url(post_url):
+        # Pengaman untuk URL bogus yang sudah terlanjur masuk DB di
+        # run lama (sebelum filter di _collect_post_links ada):
+        # jangan buang waktu membukanya; kembalikan kosong supaya
+        # _store_comments menandainya selesai dan tidak diulang.
+        print("[lewati, bukan postingan] %s" % post_url[:80])
+        return []
     page.goto(post_url)
     page.wait_for_timeout(4000)
     texts, stable = [], 0

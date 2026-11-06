@@ -1,5 +1,20 @@
 #!/usr/bin/env python3
-"""Detektor spam judol v2 - kenapa matcher lama kurang menangkap spam.
+"""Detektor spam judol v2.23 - kenapa matcher lama kurang menangkap spam.
+
+v2.23 (2026-11-06, dari analisis run Colab 651 komentar):
+- keluarga brand baru auto/dapurpola/cici/swiftfrog (token kata+angka
+  yang selama ini cuma +2); brand 2026 dan game+1000 sudah +3 lewat
+  keluarga yang ada, tidak perlu tambahan;
+- "coba" polos dan "login" dihapus dari daftar CTA ("coba" polos
+  dihitung kondisional: +2 hanya kalau ada brand/link/kontak,
+  supaya ajakan "coba sweetbonanza1000" tetap ketangkap tapi
+  keluhan "coba buat grup... Semua slot itu nipu" tidak);
+- teks UI Facebook ("Find friends", "Unread...", dsb) langsung
+  other skor 0, bukan komentar.
+Intinya tetap sama: yang harus ketangkap adalah komentar PROMOSI dan
+spam AJAKAN main judi online — keluhan/peringatan dan teks UI bukan
+promo dan tidak boleh masuk dataset.
+
 
 Diagnosis dari 2 run terakhir (48 baris mentah, 15 postingan live):
 1. Matcher frasa lama butuh frasa persis ("slot gacor", "maxwin").
@@ -91,6 +106,23 @@ FAMILIES = [
     ("gates", re.compile(r"gates")),
     ("wangi", re.compile(r"wangi")),
     ("hoki", re.compile(r"hoki")),
+    # Perluasan v2.23 (dari run Colab 2026-11-06, 651 komentar):
+    # brand yang selama ini cuma +2 (pola tak dikenal) padahal jelas
+    # promo — auto30, dapurpola68, cici46, swiftfrog3176. Pola
+    # ^...$ dipakai untuk "auto" dan "cici" supaya stem generik
+    # itu hanya dihitung kalau stem tokennya persis itu (bukan
+    # "automatic88" dsb). Keluarga ini HANYA berlaku untuk token
+    # kata+angka — "cici" / "auto" polos tanpa angka TIDAK jadi
+    # brand (cici adalah panggilan umum, auto kata umum), jadi
+    # tidak masuk KNOWN_BRANDS_NO_DIGITS. Brand 2026
+    # (slotgacor2026, jackpot2026) dan game+1000
+    # (sweetbonanza1000, gatesofolympus1000, zeuss1000) TIDAK
+    # perlu tambahan — sudah +3 lewat keluarga slot/gacor,
+    # jackpot, bonanza, gates/olympus, zeus yang sudah ada.
+    ("auto", re.compile(r"^auto$")),
+    ("dapurpola", re.compile(r"dapurpola")),
+    ("cici", re.compile(r"^cici$")),
+    ("swiftfrog", re.compile(r"swiftfrog")),
     # Perluasan v2.4 (dari batch raja88): togel 4D/3D/2D.
     ("togel4d", re.compile(r"togel")),
     # Perluasan v2.5 (user: jangan sampai ada promo yang lolos):
@@ -101,7 +133,21 @@ FAMILIES = [
 CTA_PHRASES = [
     "daftar", "gabung", "join", "register", "cobain", "coba di",
     "main di", "mainnya di", "klik", "download", "apk", "app link",
-    "link", "gas", "gasken", "langsung", "coba", "cobain di",
+    "link", "gas", "gasken", "langsung", "cobain di",
+    # v2.23: "coba" polos dan "login" DIHAPUS dari daftar CTA
+    # ini. "coba" polos bikin keluhan korban jadi candidate
+    # ("Bos semua coba buat grup gimana cara nya slot di hapus
+    # kan. Semua slot itu nipu" — skor 3, padahal itu peringatan,
+    # bukan promo). Tapi ajakan promo "coba sweetbonanza1000"
+    # harus tetap ketangkap — karena itu "coba" polos dihitung
+    # secara kondisional di classify_comment: +2 hanya kalau ada
+    # bukti promo lain (brand/link/kontak). "coba di X" /
+    # "coba aja" / "cobalah" tetap ada di daftar ini.
+    # "login" hanya muncul di teks UI Facebook ("UnreadWe noticed
+    # a new login...") — 21 komentar UI-junk jadi candidate
+    # gara-gara kata ini di run Colab 2026-11-06. Promo asli
+    # yang pakai "login" ("login di zeus88") tetap ketangkap
+    # lewat brand-nya.
     # Perluasan 2026-11-05 (user: jangan cuma token angka, tangkap
     # semua promosi): ajakan dan perintah promo lainnya.
     "klaim", "hubungi", "inbox", "daftar di", "nyoba", "cobain aja",
@@ -120,10 +166,11 @@ CTA_PHRASES = [
     # promotor untuk lolos filter ("donwload").
     "main disana", "main disitu", "main disini",
     "ketik di google", "donwload", "dowload",
-    # Perluasan v2.5: install/login/terekomendasi/silahkan/
+    # Perluasan v2.5: install/terekomendasi/silahkan/
     # buktikan — ajakan yang muncul di batch raja88/slot777
-    # tapi belum ada di daftar CTA.
-    "install", "login", "terekomendasi", "silahkan", "buktikan",
+    # tapi belum ada di daftar CTA. ("login" dihapus di v2.23,
+    # lihat catatan di atas.)
+    "install", "terekomendasi", "silahkan", "buktikan",
     "download aplikasi",
     # Perluasan v2.7 dari batch feed grup 2026-11-05: "joki"
     # adalah jasa main judi untuk orang lain — promosi jasa,
@@ -425,6 +472,39 @@ _LUCKY_RE = re.compile(r"\b(777|888|999)\b")
 # stem + digit + "d", bukan stem + digit saja.
 _FOURD_RE = re.compile(r"\b([a-z]{3,20})([234])d\b")
 
+# v2.23: teks chrome/UI Facebook, BUKAN komentar — ikut terkumpul
+# karena extract_comment_texts mengambil semua elemen [dir="auto"]
+# di halaman, termasuk navigasi dan notifikasi. Di run Colab
+# 2026-11-06, 117 dari 651 "komentar" (18%) adalah teks seperti
+# ini, dan 21 di antaranya kehitung promo. Dicek di teks yang
+# sudah dinormalisasi: cocok persis (seluruh komentar memang cuma
+# label UI itu) atau diawali "unread" (notifikasi "UnreadWe noticed
+# a new login..." / "UnreadSee who's also on Facebook...").
+_UI_JUNK_EXACT = {
+    "find friends", "notifications", "see all", "new see all",
+    "marketplace", "log in", "log in or sign up",
+    "create new account", "forgot password", "forgot account",
+    "home", "watch", "groups", "reels", "menu", "search",
+    "see more", "see less", "like", "comment", "share", "follow",
+    "following", "send", "save", "view more comments",
+    "view previous comments", "view all comments", "view replies",
+    "view more replies", "lihat komentar lainnya",
+    "lihat komentar sebelumnya", "lihat semua komentar",
+    "lihat balasan", "lihat balasan lainnya",
+}
+_UI_JUNK_PREFIXES = (
+    "unread",
+    "see who's also on facebook",
+    "tap here to get help",
+)
+
+
+def _is_ui_junk(norm):
+    n = norm.strip()
+    if n in _UI_JUNK_EXACT:
+        return True
+    return any(n.startswith(p) for p in _UI_JUNK_PREFIXES)
+
 
 def _fancy_to_ascii(ch):
     """Huruf fancy (mathematical bold/double-struck/dll) -> huruf biasa."""
@@ -540,6 +620,12 @@ def _brand_context_words(norm):
 def classify_comment(text):
     """Kembalikan skor, klasifikasi, dan sinyal untuk satu komentar."""
     norm = normalize_text(text)
+    if _is_ui_junk(norm):
+        return {
+            "score": 0, "label": "other", "signals": ["ui_junk"],
+            "brand_tokens": [], "families": [], "known_brands": [],
+            "brand_context_words": [],
+        }
     tokens = extract_brand_tokens_v2(text)
     known_brands = _known_brands_in_text(norm)
     signals = []
@@ -650,6 +736,19 @@ def classify_comment(text):
     if cta_found:
         score += 2
         signals.append("cta:%s" % ",".join(cta_found[:3]))
+    # v2.23: "coba" polos hanya dihitung sebagai ajakan kalau ada
+    # bukti promo lain (brand/link/kontak). "coba sweetbonanza1000
+    # gacor hari ini" adalah ajakan promo (brand + coba = spam),
+    # tapi "Bos semua coba buat grup... Semua slot itu nipu"
+    # adalah keluhan tanpa bukti promo (tetap other). Guard
+    # startswith("coba") mencegah hitung ganda kalau "coba di" /
+    # "cobain" / "cobalah" sudah dihitung di atas.
+    if (re.search(r"\bcoba\b", norm)
+            and not any(p.startswith("coba") for p in cta_found)
+            and (tokens or _CONTACT_RE.search(norm)
+                 or _URL_RE.search(norm) or "[tautan" in norm)):
+        score += 2
+        signals.append("cta:coba")
     phrase_found = [p for p in PHRASE_SIGNALS if p in norm]
     if phrase_found:
         score += 2
