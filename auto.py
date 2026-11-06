@@ -121,7 +121,8 @@ def run_auto(config_path, db_path, raw_path, state_path, headed, mode,
     if collect_fn is None:
         collect_fn = collect_mod.collect_comments_deep
 
-    from playwright.sync_api import sync_playwright
+    from envcheck import require_playwright
+    sync_playwright = require_playwright()
     deadline = time.time() + max_minutes * 60 if max_minutes else None
     total_rounds = 0
     total_collected_posts = 0

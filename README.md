@@ -79,6 +79,20 @@ Cek interpreter yang dipakai: `where.exe python` dan
 `python -c "import playwright; print('ok')"` — keduanya harus
 menunjuk ke dalam `venv`.
 
+**Cara paling gampang di Windows:** double-klik `setup_windows.bat`
+sekali (bikin venv + install semua), habis itu jalankan script lewat
+`run_windows.bat` — dia selalu memakai Python dari venv, jadi tidak
+bisa salah interpreter:
+
+```powershell
+run_windows.bat login_csv.py --headed
+run_windows.bat auto.py --mode random --max-rounds 2
+```
+
+Kalau Playwright tidak ditemukan, script sekarang berhenti dengan
+petunjuk instalasi (modul `envcheck.py`), bukan traceback buta
+`ModuleNotFoundError`.
+
 ## Login — dua cara
 
 ### Cara A (direkomendasikan): login manual, tanpa file password

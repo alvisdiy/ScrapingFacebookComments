@@ -123,7 +123,8 @@ def main():
         print(f"Tidak ada kata kunci di {args.keywords_file}")
         return 1
 
-    from playwright.sync_api import sync_playwright
+    from envcheck import require_playwright
+    sync_playwright = require_playwright()
 
     rows = []
     with sync_playwright() as p:

@@ -273,7 +273,8 @@ def main():
     # Password hanya dipakai untuk mengisi form login di proses ini;
     # tidak dicetak, tidak dilog, dan tidak ditulis ke file lain.
 
-    from playwright.sync_api import sync_playwright
+    from envcheck import require_playwright
+    sync_playwright = require_playwright()
 
     headed = args.headed or not args.headless
     with sync_playwright() as p:

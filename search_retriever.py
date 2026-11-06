@@ -67,7 +67,8 @@ def main():
     os.makedirs(os.path.dirname(args.db) or ".", exist_ok=True)
     conn = fb_database.connect(args.db)
 
-    from playwright.sync_api import sync_playwright
+    from envcheck import require_playwright
+    sync_playwright = require_playwright()
     from pipeline import collect as collect_mod
 
     with sync_playwright() as p:

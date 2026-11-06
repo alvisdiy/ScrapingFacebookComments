@@ -130,8 +130,8 @@ def verify_state(state_path, playwright_fn=None):
     (stub); default-nya Playwright asli.
     """
     if playwright_fn is None:
-        from playwright.sync_api import sync_playwright
-        playwright_fn = sync_playwright
+        from envcheck import require_playwright
+        playwright_fn = require_playwright()
     with playwright_fn() as p:
         try:
             browser = p.chromium.launch(headless=True, args=["--no-sandbox"])

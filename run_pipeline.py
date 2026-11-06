@@ -151,7 +151,8 @@ def main():
     os.makedirs(args.state_dir, exist_ok=True)
 
     if args.stage in ("discover", "collect", "all"):
-        from playwright.sync_api import sync_playwright
+        from envcheck import require_playwright
+        sync_playwright = require_playwright()
 
         with sync_playwright() as p:
             browser, context, page = collect_mod.ensure_login(
