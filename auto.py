@@ -103,7 +103,7 @@ def run_auto(config_path, db_path, raw_path, state_path, headed, mode,
     if collect_fn is None:
         collect_fn = collect_mod.collect_comments_deep
 
-    from envcheck import require_playwright
+    from envcheck import close_browser_quietly, require_playwright
     sync_playwright = require_playwright()
     deadline = time.time() + max_minutes * 60 if max_minutes else None
     total_rounds = 0
@@ -171,7 +171,7 @@ def run_auto(config_path, db_path, raw_path, state_path, headed, mode,
                           % sleep_s)
                     time.sleep(sleep_s)
             finally:
-                browser.close()
+                close_browser_quietly(browser)
     except KeyboardInterrupt:
         print("\nDihentikan pengguna (Ctrl+C).")
     except RuntimeError as exc:

@@ -67,9 +67,20 @@ def main():
     os.makedirs(os.path.dirname(args.db) or ".", exist_ok=True)
     conn = fb_database.connect(args.db)
 
-    from envcheck import require_playwright
+    from envcheck import close_browser_quietly, require_playwright
     sync_playwright = require_playwright()
     from pipeline import collect as collect_mod
+
+    def _insert(posts):
+        """Simpan postingan ke DB langsung (dedupe per URL), kembalikan
+        (baru, total). Dipanggil per tahap supaya Ctrl+C di tengah
+        jalan tidak menghilangkan postingan yang sudah ditemukan."""
+        seen, deduped = set(), []
+        for post in posts:
+            if post["url"] not in seen:
+                seen.add(post["url"])
+                deduped.append(post)
+        return fb_database.insert_posts(conn, deduped), len(deduped)
 
     with sync_playwright() as p:
         browser, context, page = collect_mod.ensure_login(
@@ -77,27 +88,36 @@ def main():
         )
         try:
             while True:
-                posts = []
-                if args.mode in ("all", "keywords"):
-                    posts += collect_mod.discover_posts(page, config)
-                if args.mode in ("all", "keywords", "random"):
-                    posts += collect_mod.discover_group_posts(page, config)
-                if args.mode in ("all", "random"):
-                    posts += collect_mod.discover_random_posts(page, config)
-                seen, deduped = set(), []
-                for post in posts:
-                    if post["url"] not in seen:
-                        seen.add(post["url"])
-                        deduped.append(post)
-                new = fb_database.insert_posts(conn, deduped)
-                print("%d/%d NEW POSTS" % (new, len(deduped)))
+                total_new, total_found = 0, 0
+                try:
+                    if args.mode in ("all", "keywords"):
+                        n, f = _insert(collect_mod.discover_posts(page, config))
+                        total_new += n
+                        total_found += f
+                    if args.mode in ("all", "keywords", "random"):
+                        n, f = _insert(collect_mod.discover_group_posts(page, config))
+                        total_new += n
+                        total_found += f
+                    if args.mode in ("all", "random"):
+                        n, f = _insert(collect_mod.discover_random_posts(page, config))
+                        total_new += n
+                        total_found += f
+                except KeyboardInterrupt:
+                    print("\nDihentikan (Ctrl+C). %d/%d postingan baru "
+                          "tetap tersimpan di DB." % (total_new, total_found))
+                    break
+                print("%d/%d NEW POSTS" % (total_new, total_found))
                 if not args.loop:
                     break
                 print("Sleeping for %s seconds..." % args.sleep)
-                time.sleep(args.sleep)
+                try:
+                    time.sleep(args.sleep)
+                except KeyboardInterrupt:
+                    print("\nDihentikan (Ctrl+C).")
+                    break
                 print("Resuming...")
         finally:
-            browser.close()
+            close_browser_quietly(browser)
     return 0
 
 

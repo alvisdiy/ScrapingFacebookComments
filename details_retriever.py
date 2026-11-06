@@ -102,7 +102,7 @@ def main():
         return 0
 
     import append_comments
-    from envcheck import require_playwright
+    from envcheck import close_browser_quietly, require_playwright
     sync_playwright = require_playwright()
     from pipeline import collect as collect_mod
 
@@ -125,7 +125,7 @@ def main():
                       % (url[:80], len(texts), n_tokens, n_raw))
                 time.sleep(delay)
         finally:
-            browser.close()
+            close_browser_quietly(browser)
     print("UPDATED %d POSTS" % len(found))
     return 0
 

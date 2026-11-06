@@ -273,7 +273,7 @@ def main():
     # Password hanya dipakai untuk mengisi form login di proses ini;
     # tidak dicetak, tidak dilog, dan tidak ditulis ke file lain.
 
-    from envcheck import require_playwright
+    from envcheck import close_browser_quietly, require_playwright
     sync_playwright = require_playwright()
 
     headed = args.headed or not args.headless
@@ -360,7 +360,7 @@ def main():
                   "pakai sesi, tidak butuh file itu lagi." % (args.csv, args.csv))
             return 0
         finally:
-            browser.close()
+            close_browser_quietly(browser)
 
 
 if __name__ == "__main__":

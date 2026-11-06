@@ -123,7 +123,7 @@ def main():
         print(f"Tidak ada kata kunci di {args.keywords_file}")
         return 1
 
-    from envcheck import require_playwright
+    from envcheck import close_browser_quietly, require_playwright
     sync_playwright = require_playwright()
 
     rows = []
@@ -140,7 +140,7 @@ def main():
             page.goto(LOGIN_URL)
             if not wait_for_login(page, context):
                 print("Login tidak terdeteksi dalam batas waktu. Berhenti.")
-                browser.close()
+                close_browser_quietly(browser)
                 return 1
             context.storage_state(path=args.state)
             print(f"Sesi login tersimpan ke {args.state} (jangan dibagikan).")
@@ -185,7 +185,7 @@ def main():
                     )
                 time.sleep(args.delay)
             time.sleep(args.delay)
-        browser.close()
+        close_browser_quietly(browser)
 
     with open(args.out, "w", newline="", encoding="utf-8") as fh:
         writer = csv.DictWriter(

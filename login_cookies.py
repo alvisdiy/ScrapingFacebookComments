@@ -34,6 +34,8 @@ import json
 import os
 import sys
 
+from envcheck import close_browser_quietly
+
 SAMESITE_MAP = {
     "no_restriction": "None",
     "none": "None",
@@ -151,7 +153,7 @@ def verify_state(state_path, playwright_fn=None):
                 title = ""
             return logged_in, title
         finally:
-            browser.close()
+            close_browser_quietly(browser)
 
 
 def main():

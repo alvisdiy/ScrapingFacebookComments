@@ -151,7 +151,7 @@ def main():
     os.makedirs(args.state_dir, exist_ok=True)
 
     if args.stage in ("discover", "collect", "all"):
-        from envcheck import require_playwright
+        from envcheck import close_browser_quietly, require_playwright
         sync_playwright = require_playwright()
 
         with sync_playwright() as p:
@@ -164,7 +164,7 @@ def main():
                 if args.stage in ("collect", "all"):
                     stage_collect(page, config, args.state_dir)
             finally:
-                browser.close()
+                close_browser_quietly(browser)
 
     if args.stage in ("match", "all"):
         stage_match(config, args.state_dir)

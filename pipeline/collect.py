@@ -14,8 +14,13 @@ config. Tidak posting, like, komentar, atau add friend.
 import json
 import os
 import re
+import sys
 import time
 import urllib.parse
+
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from envcheck import close_browser_quietly
 
 LOGIN_URL = "https://www.facebook.com/"
 SEARCH_POSTS_URL = "https://www.facebook.com/search/posts/?q={q}"
@@ -69,7 +74,7 @@ def ensure_login(p, state_path, headed):
                 break
             time.sleep(5)
         else:
-            browser.close()
+            close_browser_quietly(browser)
             raise RuntimeError("Login tidak terdeteksi dalam 300 detik.")
         context.storage_state(path=state_path)
         print("Sesi login tersimpan ke %s (jangan dibagikan)." % state_path)

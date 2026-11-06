@@ -14,6 +14,17 @@ mendapat petunjuk yang bisa langsung diikuti.
 import sys
 
 
+def close_browser_quietly(browser):
+    """Tutup browser tanpa traceback kalau koneksi driver-nya sudah
+    mati — yang biasa terjadi habis Ctrl+C: interrupt menutup koneksi
+    dulu, lalu browser.close() di blok finally ikut gagal dan
+    traceback-nya menutupi Ctrl+C yang sebenarnya tidak apa-apa."""
+    try:
+        browser.close()
+    except Exception:
+        pass
+
+
 def require_playwright():
     """Kembalikan playwright.sync_api.sync_playwright, atau berhenti
     dengan petunjuk instalasi kalau modulnya tidak ditemukan."""
