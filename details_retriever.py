@@ -58,6 +58,10 @@ def main():
     parser.add_argument("--state", default="auth_state.json")
     parser.add_argument("--headed", action="store_true")
     parser.add_argument("--max-posts", type=int, default=MAX_UPDATES)
+    parser.add_argument("--raw", default="data/raw_comments.jsonl",
+                        help="File dataset mentah. Komentar yang dikumpulkan "
+                        "live juga ditulis ke sini (selain ke DB), supaya "
+                        "analyze_spam.py langsung melihatnya.")
     parser.add_argument("--offline", action="store_true",
                         help="Pakai data/raw_comments.jsonl, tanpa browser.")
     parser.add_argument("--offline-input", default="data/raw_comments.jsonl")
@@ -89,13 +93,15 @@ def main():
         return 0
 
     cur = conn.cursor()
-    cur.execute("SELECT post_url FROM posts WHERE status = 'new' LIMIT ?",
+    cur.execute("SELECT post_url, base_keyword FROM posts "
+                "WHERE status = 'new' LIMIT ?",
                 (args.max_posts,))
-    urls = [r[0] for r in cur.fetchall()]
-    if not urls:
+    found = cur.fetchall()
+    if not found:
         print("Tidak ada postingan baru di DB. Jalankan search_retriever.py dulu.")
         return 0
 
+    import append_comments
     from envcheck import require_playwright
     sync_playwright = require_playwright()
     from pipeline import collect as collect_mod
@@ -105,18 +111,22 @@ def main():
             p, args.state, headed=args.headed
         )
         try:
-            for url in urls:
+            for url, base_kw in found:
                 try:
                     texts = collect_mod.collect_comments_deep(page, url, config)
                 except Exception as exc:
                     print("Gagal %s: %s" % (url[:80], exc))
                     continue
                 n_tokens = _store_comments(conn, url, texts)
-                print("%s -> %d komentar, %d token" % (url[:80], len(texts), n_tokens))
+                n_raw = append_comments.append_rows(args.raw, [
+                    {"post_url": url, "base_keyword": base_kw or "",
+                     "comment_text": t} for t in texts])
+                print("%s -> %d komentar, %d token, +%d ke raw"
+                      % (url[:80], len(texts), n_tokens, n_raw))
                 time.sleep(delay)
         finally:
             browser.close()
-    print("UPDATED %d POSTS" % len(urls))
+    print("UPDATED %d POSTS" % len(found))
     return 0
 
 

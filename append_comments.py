@@ -18,9 +18,14 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 DEFAULT_DATA = os.path.join(HERE, "data", "raw_comments.jsonl")
 
 
-def main():
-    src = sys.argv[1]
-    data_path = sys.argv[2] if len(sys.argv) > 2 else DEFAULT_DATA
+def append_rows(data_path, rows):
+    """Tambah list komentar ke raw_comments.jsonl tanpa duplikat.
+
+    Kembalikan jumlah baris yang benar-benar ditambahkan. Dipakai juga
+    oleh details_retriever.py (live) dan auto.py, supaya komentar yang
+    dikumpulkan langsung masuk dataset mentah dan analyze_spam.py
+    bisa melihatnya tanpa langkah ekspor tambahan.
+    """
     existing = set()
     if os.path.exists(data_path):
         with open(data_path, encoding="utf-8") as fh:
@@ -30,17 +35,24 @@ def main():
                     continue
                 row = json.loads(line)
                 existing.add((row.get("post_url"), row.get("comment_text")))
-    new = json.load(open(src, encoding="utf-8"))
-    os.makedirs(os.path.dirname(data_path), exist_ok=True)
+    os.makedirs(os.path.dirname(data_path) or ".", exist_ok=True)
     added = 0
     with open(data_path, "a", encoding="utf-8") as fh:
-        for row in new:
+        for row in rows:
             key = (row.get("post_url"), row.get("comment_text"))
             if key in existing:
                 continue
             existing.add(key)
             fh.write(json.dumps(row, ensure_ascii=False) + "\n")
             added += 1
+    return added
+
+
+def main():
+    src = sys.argv[1]
+    data_path = sys.argv[2] if len(sys.argv) > 2 else DEFAULT_DATA
+    new = json.load(open(src, encoding="utf-8"))
+    added = append_rows(data_path, new)
     print(
         "Ditambahkan %d baris baru, %d duplikat dilewati"
         % (added, len(new) - added)

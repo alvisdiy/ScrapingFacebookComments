@@ -60,6 +60,12 @@ def discover(page, config, mode):
     return deduped
 
 
+def append_raw(raw_path, rows):
+    """Alias ke append_comments.append_rows (dedupe postingan+teks)."""
+    import append_comments
+    return append_comments.append_rows(raw_path, rows)
+
+
 def summarize_raw(raw_path):
     """Hitung komentar unik + label promo dari raw_comments.jsonl."""
     seen, labels = set(), {"spam": 0, "candidate": 0, "other": 0}
@@ -78,30 +84,6 @@ def summarize_raw(raw_path):
             labels[classify_comment(row.get("comment_text", ""))["label"]] += 1
     total = sum(labels.values())
     return total, labels
-
-
-def append_raw(raw_path, rows):
-    """Tambah komentar ke raw_comments.jsonl (dedupe postingan+teks)."""
-    existing = set()
-    if os.path.exists(raw_path):
-        with open(raw_path, encoding="utf-8") as fh:
-            for line in fh:
-                line = line.strip()
-                if not line:
-                    continue
-                row = json.loads(line)
-                existing.add((row.get("post_url"), row.get("comment_text")))
-    os.makedirs(os.path.dirname(raw_path) or ".", exist_ok=True)
-    added = 0
-    with open(raw_path, "a", encoding="utf-8") as fh:
-        for row in rows:
-            key = (row.get("post_url"), row.get("comment_text"))
-            if key in existing:
-                continue
-            existing.add(key)
-            fh.write(json.dumps(row, ensure_ascii=False) + "\n")
-            added += 1
-    return added
 
 
 def run_auto(config_path, db_path, raw_path, state_path, headed, mode,

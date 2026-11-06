@@ -73,6 +73,10 @@ python details_retriever.py
 python analyze_spam.py
 ```
 
+(`details_retriever` menyimpan komentar ke database DAN ke
+`data/raw_comments.jsonl`, jadi `analyze_spam` langsung melihat
+komentar yang baru dikumpulkan.)
+
 **Windows:** ganti `python` dengan `run_windows.bat`, contoh:
 `run_windows.bat auto.py --mode random`
 
