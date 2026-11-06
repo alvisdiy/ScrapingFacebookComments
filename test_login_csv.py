@@ -149,6 +149,14 @@ def main():
         hints = login_csv._describe_login_failure(page)
         check("halaman login biasa tidak memberi tuduhan palsu",
               hints == set())
+
+        page = FakePage(
+            set(), body_text="Masukkan kode dari aplikasi autentikasi.",
+            page_url="https://www.facebook.com/two_step_verification/"
+            "authentication/?flow=pre_authentication")
+        hints = login_csv._describe_login_failure(page)
+        check("halaman 2FA terdeteksi (two_step_verification)",
+              hints == {"kode 2FA"})
     finally:
         os.chdir(old)
 
