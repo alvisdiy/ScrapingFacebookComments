@@ -133,18 +133,72 @@ def _open_login_form(page):
         "(upload auth_state.json dari komputermu sendiri) di notebook.")
 
 
-def main():
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--csv", default="login.csv")
-    parser.add_argument("--state", default="auth_state.json")
-    parser.add_argument("--headed", action="store_true",
-                        help="Tampilkan browser (disarankan, supaya checkpoint/2FA bisa diselesaikan manual).")
-    parser.add_argument("--headless", action="store_true")
-    args = parser.parse_args()
+LOGIN_FAILURE_PHRASES = (
+    # (frasa di halaman/URL, arti untuk user)
+    ("you've entered is incorrect", "password salah"),
+    ("you entered is incorrect", "password salah"),
+    ("yang anda masukkan salah", "password salah"),
+    ("yang kamu masukkan salah", "password salah"),
+    ("checkpoint", "checkpoint / verifikasi identitas"),
+    ("confirm your identity", "checkpoint / verifikasi identitas"),
+    ("konfirmasi identitas", "checkpoint / verifikasi identitas"),
+    ("verifikasi identitas", "checkpoint / verifikasi identitas"),
+    ("perlu memverifikasi", "checkpoint / verifikasi identitas"),
+    ("two-factor", "kode 2FA"),
+    ("two factor", "kode 2FA"),
+    ("enter the code", "kode 2FA"),
+    ("kode login", "kode 2FA"),
+    ("suspicious", "login mencurigakan"),
+    ("mencurigakan", "login mencurigakan"),
+    ("unusual login", "login mencurigakan"),
+    ("login tidak biasa", "login mencurigakan"),
+    ("locked", "akun terkunci"),
+    ("terkunci", "akun terkunci"),
+    ("disabled", "akun dinonaktifkan"),
+    ("dinonaktifkan", "akun dinonaktifkan"),
+)
 
-    email, password = load_login(args.csv)
-    # Password hanya dipakai untuk mengisi form login di proses ini;
-    # tidak dicetak, tidak dilog, dan tidak ditulis ke file lain.
+
+def _describe_login_failure(page):
+    """Setelah submit login tapi sesi tidak terbentuk: laporkan kenapa.
+
+    Mencetak URL + judul halaman terakhir, mendeteksi penyebab dari
+    teks halaman (password salah / checkpoint / 2FA / terkunci), dan
+    menyimpan login_failed.png + login_failed.txt sebagai bukti.
+    Password TIDAK ada di keduanya: kolom password hanya menampilkan
+    titik-titik, dan teks halaman tidak memuat nilai isian.
+    Kembalikan set label penyebab yang terdeteksi (bisa kosong).
+    """
+    url, title, text = "", "", ""
+    try:
+        url = page.url or ""
+    except Exception:
+        pass
+    try:
+        title = page.title() or ""
+    except Exception:
+        pass
+    try:
+        text = page.locator("body").inner_text(timeout=5000)
+    except Exception:
+        text = ""
+    print("Halaman terakhir: %s" % url)
+    print("Judul: %s" % title)
+    low_text, low_url = text.lower(), url.lower()
+    hints = {label for phrase, label in LOGIN_FAILURE_PHRASES
+             if phrase in low_text or phrase in low_url}
+    if hints:
+        print("Yang terdeteksi di halaman: %s" % ", ".join(sorted(hints)))
+    else:
+        print("Tidak ada pesan error yang dikenali di halaman.")
+    try:
+        page.screenshot(path="login_failed.png")
+        with open("login_failed.txt", "w", encoding="utf-8") as fh:
+            fh.write("URL: %s\nJudul: %s\n\n%s" % (url, title, text[:2000]))
+        print("Bukti disimpan ke login_failed.png + login_failed.txt.")
+    except Exception as exc:
+        print("Gagal menyimpan bukti: %s" % exc)
+    return hints
 
 
 def load_login(path):
@@ -234,25 +288,47 @@ def main():
                 page.keyboard.press("Enter")
             # Tunggu sesi: cookie c_user, atau penyelesaian manual
             # checkpoint/2FA di jendela browser (maks 300 detik).
+            # URL dicetak hanya saat berubah, supaya log tidak berisik.
             deadline = time.time() + 300
+            last_url = ""
             while time.time() < deadline:
                 if _is_logged_in(context):
                     break
-                # Beri tahu sekali kalau tampak checkpoint, tanpa detail akun.
                 try:
                     url = page.url or ""
                 except Exception:
                     url = ""
-                if "checkpoint" in url or "two_factor" in url or "login" in url:
-                    print("Facebook meminta verifikasi tambahan. Selesaikan "
-                          "di jendela browser (kalau headed), lalu tunggu...")
-                    time.sleep(10)
-                else:
-                    time.sleep(5)
+                if url != last_url:
+                    last_url = url
+                    print("Halaman: %s" % url)
+                    if "checkpoint" in url or "two_factor" in url:
+                        print("Facebook meminta verifikasi tambahan. "
+                              "Selesaikan di jendela browser (kalau headed), "
+                              "lalu tunggu...")
+                time.sleep(5)
             else:
-                print("Login tidak terdeteksi dalam 300 detik. Sesi TIDAK disimpan.")
-                print("Kemungkinan: password salah, checkpoint belum selesai, "
-                      "atau akun terkunci. Coba lagi dengan --headed.")
+                hints = _describe_login_failure(page)
+                print("Login tidak terdeteksi dalam 300 detik. "
+                      "Sesi TIDAK disimpan.")
+                if ("checkpoint / verifikasi identitas" in hints
+                        or "kode 2FA" in hints):
+                    print("Penyebab paling mungkin: Facebook meminta "
+                          "verifikasi tambahan yang tidak bisa diselesaikan "
+                          "headless. Login sekali di komputermu sendiri "
+                          "(--headed), lalu upload auth_state.json (Opsi A "
+                          "di notebook).")
+                elif "password salah" in hints:
+                    print("Facebook bilang password salah — cek lagi penulisan "
+                          "password di login.csv (spasi di ujung? huruf "
+                          "besar/kecil?).")
+                elif "akun terkunci" in hints or "akun dinonaktifkan" in hints:
+                    print("Akun tampaknya terkunci/dinonaktifkan. Coba login "
+                          "biasa di browser dulu untuk memastikannya.")
+                else:
+                    print("Coba login biasa di browser dulu: kalau di sana "
+                          "bisa login, berarti yang gagal hanya jalur "
+                          "headless ini — pakai Opsi A (auth_state.json dari "
+                          "komputermu sendiri).")
                 return 1
             context.storage_state(path=args.state)
             try:

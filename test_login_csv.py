@@ -14,15 +14,28 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import login_csv
 
 
+class FakeBody:
+    def __init__(self, text):
+        self._text = text
+
+    def inner_text(self, timeout=5000):
+        return self._text
+
+
 class FakePage:
-    def __init__(self, ok_selectors, fail_urls=(), banner=False):
+    def __init__(self, ok_selectors, fail_urls=(), banner=False,
+                 body_text="", page_url=None):
         self.ok = set(ok_selectors)
         self.fail_urls = set(fail_urls)
         self.banner = banner
+        self.body_text = body_text
         self.visited = []
         self.clicked = []
         self.shot = None
-        self._url = "https://www.facebook.com/"
+        self._url = page_url or "https://www.facebook.com/"
+
+    def locator(self, selector):
+        return FakeBody(self.body_text)
 
     def goto(self, url, timeout=60000):
         self.visited.append(url)
@@ -106,6 +119,36 @@ def main():
               os.path.exists("login_page.png"))
         check("html diagnosis disimpan",
               os.path.exists("login_page.html"))
+    finally:
+        os.chdir(old)
+
+    # 5-7. Diagnosis kegagalan login (di folder sementara).
+    tmp = tempfile.mkdtemp()
+    os.chdir(tmp)
+    try:
+        page = FakePage(
+            set(), body_text="Confirm your identity. We need to verify "
+            "this login.",
+            page_url="https://www.facebook.com/checkpoint/")
+        hints = login_csv._describe_login_failure(page)
+        check("checkpoint terdeteksi dari URL + teks",
+              "checkpoint / verifikasi identitas" in hints)
+        check("screenshot kegagalan disimpan",
+              os.path.exists("login_failed.png"))
+        check("teks kegagalan disimpan",
+              os.path.exists("login_failed.txt"))
+
+        page = FakePage(
+            set(), body_text="The password that you've entered is "
+            "incorrect. Please try again.")
+        hints = login_csv._describe_login_failure(page)
+        check("password salah terdeteksi",
+              hints == {"password salah"})
+
+        page = FakePage(set(), body_text="Email\nKata Sandi\nMasuk")
+        hints = login_csv._describe_login_failure(page)
+        check("halaman login biasa tidak memberi tuduhan palsu",
+              hints == set())
     finally:
         os.chdir(old)
 
