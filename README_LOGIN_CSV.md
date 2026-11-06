@@ -35,6 +35,17 @@ dibutuhkan lagi. Run berikutnya (`search_retriever.py`,
    script gagal dengan jelas dan sesi tidak disimpan. Jadi janji
    "tanpa login manual sama sekali" tidak berlaku untuk kasus itu —
    yang dihemat adalah login manual berulang.
+3. **Form login tidak selalu muncul** — terutama dari IP datacenter
+   (Colab/Kaggle), Facebook kadang menampilkan halaman lain sehingga
+   kolom email tidak ketemu (dulu: `TimeoutError` di `#email`).
+   Script sekarang mencoba dua URL (`facebook.com/` lalu
+   `/login`), menutup banner cookie dulu, lalu mencoba beberapa
+   selector form. Kalau tetap tidak ketemu, script menyimpan
+   `login_page.png` + `login_page.html` (diambil SEBELUM password
+   diisi, jadi aman) dan berhenti dengan pesan jelas. Kalau itu
+   terjadi, lihat screenshot-nya untuk tahu halaman apa yang tampil,
+   lalu pakai cara `auth_state.json` (login sekali di komputermu
+   sendiri) sebagai gantinya.
 3. **Hanya teks komentar + link postingan yang dikumpulkan.**
    Tidak ada nama/ID profil yang disimpan, tidak ada posting/like/
    komen yang dilakukan script.

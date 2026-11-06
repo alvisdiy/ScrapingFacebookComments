@@ -49,9 +49,102 @@ import os
 import sys
 import time
 
-LOGIN_URL = "https://www.facebook.com/login"
+LOGIN_URLS = ("https://www.facebook.com/",
+              "https://www.facebook.com/login")
+EMAIL_SELECTORS = ("#email", "input[name='email']",
+                   "[data-testid='royal_email']")
+PASS_SELECTORS = ("#pass", "input[name='pass']",
+                  "[data-testid='royal_pass']")
+COOKIE_BUTTON_TEXTS = ("Allow all cookies",
+                       "Allow essential and optional cookies",
+                       "Terima semua cookie", "Izinkan semua cookie")
 PLACEHOLDER_MARKERS = ("example", "ganti", "changeme", "password_here",
                        "isi_disini", "your_password")
+
+
+def _dismiss_cookie_banner(page):
+    """Klik tombol persetujuan cookie kalau muncul, abaikan kalau tidak."""
+    for text in COOKIE_BUTTON_TEXTS:
+        try:
+            page.click("text=%s" % text, timeout=3000)
+            print("Tombol cookie diklik: %s" % text)
+            return
+        except Exception:
+            continue
+
+
+def _wait_for_selector(page, selector, timeout_ms):
+    try:
+        page.wait_for_selector(selector, timeout=timeout_ms)
+        return True
+    except Exception:
+        return False
+
+
+def _open_login_form(page):
+    """Buka halaman login dan tunggu form email+password muncul.
+
+    Facebook tidak selalu menampilkan form yang sama: dari IP datacenter
+    (Colab/Kaggle) kadang yang muncul halaman lain, atau form-nya memakai
+    selector berbeda. Jadi: coba dua URL, tutup banner cookie dulu, lalu
+    coba beberapa selector. Kalau tetap tidak ketemu, simpan screenshot
+    + HTML halaman (SEBELUM password diisi, jadi tidak ada kredensial
+    di file itu) dan berhenti dengan pesan jelas, bukan traceback buta.
+    Kembalikan (email_selector, pass_selector).
+    """
+    for url in LOGIN_URLS:
+        try:
+            page.goto(url, timeout=60000)
+        except Exception as exc:
+            print("Gagal membuka %s: %s" % (url, exc))
+            continue
+        page.wait_for_timeout(3000)
+        _dismiss_cookie_banner(page)
+        for email_sel in EMAIL_SELECTORS:
+            if not _wait_for_selector(page, email_sel, 10000):
+                continue
+            for pass_sel in PASS_SELECTORS:
+                if _wait_for_selector(page, pass_sel, 5000):
+                    print("Form login ketemu di %s (%s / %s)"
+                          % (url, email_sel, pass_sel))
+                    return email_sel, pass_sel
+            print("Kolom email ketemu tapi kolom password tidak (%s)."
+                  % url)
+            return email_sel, None
+    # Tidak ada form di semua URL yang dicoba — simpan bukti diagnosis.
+    try:
+        print("Halaman yang tampil: %s" % page.url)
+        print("Judul halaman: %s" % page.title())
+    except Exception:
+        pass
+    try:
+        page.screenshot(path="login_page.png")
+        with open("login_page.html", "w", encoding="utf-8") as fh:
+            fh.write(page.content())
+        print("Diagnosis disimpan ke login_page.png + login_page.html "
+              "(diambil SEBELUM password diisi).")
+    except Exception as exc:
+        print("Gagal menyimpan diagnosis: %s" % exc)
+    raise SystemExit(
+        "Form login Facebook tidak muncul. Kemungkinan: Facebook "
+        "menampilkan halaman pemeriksaan (checkpoint / verifikasi robot) "
+        "untuk IP ini, atau halaman login berubah. Lihat login_page.png "
+        "untuk melihat halaman apa yang tampil, lalu coba Opsi A "
+        "(upload auth_state.json dari komputermu sendiri) di notebook.")
+
+
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--csv", default="login.csv")
+    parser.add_argument("--state", default="auth_state.json")
+    parser.add_argument("--headed", action="store_true",
+                        help="Tampilkan browser (disarankan, supaya checkpoint/2FA bisa diselesaikan manual).")
+    parser.add_argument("--headless", action="store_true")
+    args = parser.parse_args()
+
+    email, password = load_login(args.csv)
+    # Password hanya dipakai untuk mengisi form login di proses ini;
+    # tidak dicetak, tidak dilog, dan tidak ditulis ke file lain.
 
 
 def load_login(path):
@@ -127,10 +220,13 @@ def main():
         context = browser.new_context()
         page = context.new_page()
         try:
-            page.goto(LOGIN_URL)
-            page.wait_for_selector("#email", timeout=30000)
-            page.fill("#email", email)
-            page.fill("#pass", password)
+            email_sel, pass_sel = _open_login_form(page)
+            if pass_sel is None:
+                raise SystemExit(
+                    "Kolom password tidak ditemukan setelah kolom email. "
+                    "Lihat login_page.png untuk halaman yang tampil.")
+            page.fill(email_sel, email)
+            page.fill(pass_sel, password)
             # Tombol login Facebook: name="login", fallback tekan Enter.
             try:
                 page.click('button[name="login"]', timeout=10000)
