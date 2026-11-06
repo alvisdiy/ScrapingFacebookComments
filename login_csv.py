@@ -121,8 +121,10 @@ def _open_login_form(page):
         page.screenshot(path="login_page.png")
         with open("login_page.html", "w", encoding="utf-8") as fh:
             fh.write(page.content())
-        print("Diagnosis disimpan ke login_page.png + login_page.html "
-              "(diambil SEBELUM password diisi).")
+        print("Diagnosis disimpan ke %s + %s "
+              "(diambil SEBELUM password diisi)."
+              % (os.path.abspath("login_page.png"),
+                 os.path.abspath("login_page.html")))
     except Exception as exc:
         print("Gagal menyimpan diagnosis: %s" % exc)
     raise SystemExit(
@@ -199,7 +201,9 @@ def _describe_login_failure(page):
         page.screenshot(path="login_failed.png")
         with open("login_failed.txt", "w", encoding="utf-8") as fh:
             fh.write("URL: %s\nJudul: %s\n\n%s" % (url, title, text[:2000]))
-        print("Bukti disimpan ke login_failed.png + login_failed.txt.")
+        print("Bukti disimpan ke %s + %s."
+              % (os.path.abspath("login_failed.png"),
+                 os.path.abspath("login_failed.txt")))
     except Exception as exc:
         print("Gagal menyimpan bukti: %s" % exc)
     return hints
